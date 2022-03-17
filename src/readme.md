@@ -143,10 +143,12 @@ $ ip link add vxlan001 type vxlan \
 替换为
 
 ```
-#【group】多播地址 各个机器输入一样的group就行，值自定义
+#【group】多播地址 各个机器输入一样的group就行，值自定义，范围第一个数要超过224
 $ ip link add vxlan001 type vxlan \
     id 120 \
     dstport 4789 \
     group 229.1.1.1 \
     dev eth1
 ```
+
+### 6.容器中的跨主机访问
