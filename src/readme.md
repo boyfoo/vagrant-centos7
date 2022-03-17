@@ -47,6 +47,7 @@ $ iptables -A FORWARD -i eth1 -o docker0 -j ACCEPT
 ### 3、不同 linux namespace 通信
 
 #### 网络
+
 ```
 # 列表
 $ ip netns list
@@ -71,4 +72,81 @@ $ ip netns exec ns2 ip addr add local 10.12.0.3/24 dev veth002
 # 启动veth
 $ ip netns exec ns1 ip link set veth001 up
 $ ip netns exec ns2 ip link set veth002 up
+```
+
+### 4. `vxlan`点对点
+
+准备两台机器`192.168.33.10`,`192.168.33.11`
+
+
+```
+$ docker run --name ngx1 --rm -p 8181:80 -d nginx:1.18-alpine
+$ docker exec -it ngx1 sh -c "echo ngx1 > /usr/share/nginx/html/index.html"
+
+$ docker run --name ngx2 --rm -p 8181:80 -d nginx:1.18-alpine
+$ docker exec -it ngx2 sh -c "echo ngx2 > /usr/share/nginx/html/index.html"
+```
+
+创建`vxlan`模式
+
+```
+# 在192.168.33.10上创建 
+#【vxlan001】自定义名称
+#【id】 网络标识 自定义多少都行
+#【dstport】隧道通信端口
+#【remote】点对点模式对方的ip
+#【local】点对点模式自己的ip
+#【dev】eth1是ip的网卡
+$ ip link add vxlan001 type vxlan \
+    id 120 \
+    dstport 4789 \
+    remote 192.168.33.11 \
+    local 192.168.33.10 \
+    dev eth1
+
+# 设置一个自定义ip 
+$ ip addr add 10.16.0.2/24 dev vxlan001
+# 启动
+$ ip link set vxlan001 up
+
+
+# 在192.168.33.11上创建
+# id和dsrport与上面的一致 remote和local与上面的对调
+$ ip link add vxlan001 type vxlan \
+    id 120 \
+    dstport 4789 \
+    remote 192.168.33.10 \
+    local 192.168.33.11 \
+    dev eth1 
+# 设置一个自定义ip 
+$ ip addr add 10.16.0.3/24 dev vxlan001
+# 启动
+$ ip link set vxlan001 up
+```
+
+这个时候在任意一台主机上上`curl 10.16.0.2:8181`或`curl 10.16.0.3:8181`是可以通的
+
+删除 `ip link delete vxlan001`
+
+### 5. `vxlan`广播模式
+
+把点对点模式中
+```
+$ ip link add vxlan001 type vxlan \
+    id 120 \
+    dstport 4789 \
+    remote 192.168.33.11 \
+    local 192.168.33.10 \
+    dev eth1
+```
+
+替换为
+
+```
+#【group】多播地址 各个机器输入一样的group就行，值自定义
+$ ip link add vxlan001 type vxlan \
+    id 120 \
+    dstport 4789 \
+    group 229.1.1.1 \
+    dev eth1
 ```
