@@ -150,5 +150,3 @@ $ ip link add vxlan001 type vxlan \
     group 229.1.1.1 \
     dev eth1
 ```
-
-### 6.容器中的跨主机访问
